@@ -23,6 +23,7 @@ except ImportError:
 
 # List of files skipped (i.e. system files, index files).
 SKIPPED_FILES = [".DS_Store", "Thumbs.db"]
+SKIPPED_DIRS = [".AppleDouble"]
 
 Base = declarative_base()
 log = logging.getLogger("")
@@ -219,11 +220,14 @@ if __name__ == "__main__":
             if not os.path.exists(monitor_path.path):
                 logging.warning("Configured path %s doesn't exist." % monitor_path.path)
             elif os.path.isdir(monitor_path.path):
-                logging.debug("Adding directory: %s" % monitor_path.path)
-                for root, dirs, files in os.walk(monitor_path.path, onerror=logging.error):
-                    for f in sorted(files):
-                        found_file = os.path.join(root, f)
-                        add_file_to_monitor(found_file)
+                if os.path.basename(monitor_path.path) in SKIPPED_FILES:
+                    logging.debug("Skipping directory: %s" % monitor_path.path)
+                else:
+                    logging.debug("Adding directory: %s" % monitor_path.path)
+                    for root, dirs, files in os.walk(monitor_path.path, onerror=logging.error):
+                        for f in sorted(files):
+                            found_file = os.path.join(root, f)
+                            add_file_to_monitor(found_file)
             elif os.path.isfile(monitor_path.path):
                 add_file_to_monitor(monitor_path.path)
 
