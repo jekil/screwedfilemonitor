@@ -236,8 +236,8 @@ if __name__ == "__main__":
             if not os.path.exists(monitor_path.path):
                 logging.warning("Configured path %s doesn't exist." % monitor_path.path)
             elif os.path.isdir(monitor_path.path):
-                if os.path.basename(monitor_path.path) in SKIPPED_FILES:
-                    logging.debug("Skipping directory: %s" % monitor_path.path)
+                if os.path.basename(monitor_path.path) in SKIPPED_DIRS:
+                    logging.debug("Skipping directory: %s because of directory ignore list" % monitor_path.path)
                 else:
                     logging.debug("Adding directory: %s" % monitor_path.path)
                     for root, dirs, files in os.walk(monitor_path.path, onerror=logging.error):
