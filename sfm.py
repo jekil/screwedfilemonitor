@@ -115,6 +115,9 @@ def calculate_hash(file):
 
 
 def add_file_to_monitor(found_file):
+    """Adds a file to integrity monitoring.
+    @param found_file: file path
+    """
     # Skip check if file name is in blacklist. (i.e. dynamic files like Thumbs.db)
     if os.path.basename(found_file) in SKIPPED_FILES:
         logging.debug("Skipping %s because of in skipped files list." % found_file)
@@ -134,6 +137,10 @@ def add_file_to_monitor(found_file):
             logging.error("Error adding file: %s" % e)
 
 def add_hash(monitored_file, file_hash):
+    """Stores aa file hash.
+    @param monitored_file: file path
+    @param file_hash: hash
+    """
     logging.debug("Calculated hash %s for file %s" % (file_hash, monitored_file.path))
     if not session.query(FileHash).filter(FileHash.monitored_file==monitored_file).count():
         logging.debug("File not found in hash table, adding it.")
@@ -155,6 +162,10 @@ def add_hash(monitored_file, file_hash):
             add_anomaly("Hash mismatch", monitored_file, file_hash)
 
 def exist_check(monitored_file):
+    """Check if a file exists.
+    @param monitored_file: file path
+    @return: boolean
+    """
     if os.path.exists(monitored_file.path):
         return True
     else:
@@ -164,6 +175,11 @@ def exist_check(monitored_file):
         return False
 
 def add_anomaly(description, monitored_file, md5=None):
+    """Add an anomaly.
+    @param description: anomaly description
+    @param monitored_file: file path
+    @param md5: file hash
+    """
     ano = Anomaly(description=description, monitored_file=monitored_file, md5=md5)
     session.add(ano)
     try:
@@ -206,7 +222,7 @@ if __name__ == "__main__":
                 session.commit()
             except IntegrityError:
                 session.rollback()
-                logging.error("The path is aldready monitored.")
+                logging.error("The path is already monitored.")
             finally:
                 session.close()
         else:
