@@ -10,7 +10,7 @@ from datetime import datetime
 
 try:
     from sqlalchemy import create_engine
-    from sqlalchemy.ext.declarative import declarative_base
+    from sqlalchemy.orm import declarative_base
     from sqlalchemy import Column, Integer, String, DateTime, Text
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy import ForeignKey
@@ -18,7 +18,7 @@ try:
     from sqlalchemy.exc import IntegrityError
     from sqlalchemy.sql import exists
 except ImportError:
-    print "SQLAlchemy not found, please install it. (For example with: `pip install sqlalchemy`"
+    print("SQLAlchemy not found, please install it. (For example with: `pip install sqlalchemy`)")
     sys.exit(1)
 
 # List of files skipped (i.e. system files, index files).
@@ -107,10 +107,10 @@ def calculate_hash(file):
         with open(file, "rb") as f:
             while True:
                 chunk = f.read(32768)
-                md5.update(chunk)
                 if not chunk:
                     return md5.hexdigest()
-    except IOError, e:
+                md5.update(chunk)
+    except IOError as e:
         log.error("Error calculating hash on %s: %s" % (file, e))
 
 
@@ -186,7 +186,7 @@ def add_anomaly(description, monitored_file, md5=None):
         session.commit()
     except Exception as e:
         session.rollback()
-        logging.error("Error adding anaomaly: %s" % e)
+        logging.error("Error adding anomaly: %s" % e)
 
     logging.error("NEW ANOMALY [ID: %s] %s for file %s !!!" % (ano.id, ano.description, ano.monitored_file.path))
 
@@ -226,7 +226,7 @@ if __name__ == "__main__":
             finally:
                 session.close()
         else:
-            logging.error("You are trying to add a not existant path.")
+            logging.error("You are trying to add a non-existent path.")
     else:
         # Run.
         session = Session()
