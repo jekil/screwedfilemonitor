@@ -1,5 +1,6 @@
 # Database
 db.json
+db.bak
 db.sqlite
 
 # Python
