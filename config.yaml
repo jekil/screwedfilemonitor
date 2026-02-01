@@ -13,6 +13,7 @@ skipped_files:
   - ".fseventsd"
   - ".TemporaryItems"
   - ".apdisk"
+  - ".localized"
   - "Icon\r"                 # Custom folder icon
 
   # Windows
