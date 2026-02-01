@@ -44,6 +44,15 @@ try:
 except ImportError:
     YAML_AVAILABLE = False
 
+try:
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    import base64
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    CRYPTO_AVAILABLE = False
+
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -106,6 +115,58 @@ log = logging.getLogger(__name__)
 
 
 # =============================================================================
+# Path Encryption
+# =============================================================================
+
+class PathEncryptor:
+    """
+    Encrypts and decrypts file paths using Fernet symmetric encryption.
+
+    Uses PBKDF2 for key derivation from password.
+    Salt is stored in the database for key regeneration.
+    """
+
+    def __init__(self, password, salt=None):
+        """
+        Initialize the encryptor with a password.
+
+        Args:
+            password: Password string for encryption.
+            salt: Optional salt bytes. If None, generates new salt.
+        """
+        if not CRYPTO_AVAILABLE:
+            raise RuntimeError("cryptography library required for encryption. "
+                               "Install with: pip install cryptography")
+
+        if salt is None:
+            self.salt = os.urandom(16)
+        else:
+            self.salt = base64.b64decode(salt) if isinstance(salt, str) else salt
+
+        # Derive key from password using PBKDF2
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=self.salt,
+            iterations=480000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+        self.fernet = Fernet(key)
+
+    def get_salt_b64(self):
+        """Return salt as base64 string for storage."""
+        return base64.b64encode(self.salt).decode()
+
+    def encrypt(self, plaintext):
+        """Encrypt a string and return base64-encoded ciphertext."""
+        return self.fernet.encrypt(plaintext.encode()).decode()
+
+    def decrypt(self, ciphertext):
+        """Decrypt base64-encoded ciphertext and return plaintext string."""
+        return self.fernet.decrypt(ciphertext.encode()).decode()
+
+
+# =============================================================================
 # Database Class
 # =============================================================================
 
@@ -118,18 +179,31 @@ class Database:
         - files: Individual files discovered in monitored paths
         - hashes: SHA-256 hashes for each monitored file
         - anomalies: Detected integrity violations
+
+    Optionally encrypts file paths using symmetric encryption.
     """
 
-    def __init__(self, path):
+    def __init__(self, path, password=None):
         """
         Initialize the database.
 
         Args:
             path: Path to the JSON database file.
+            password: Optional password for path encryption.
         """
         self.path = Path(path)
         self._tmp_path = None  # Track temp file for cleanup on interrupt
+        self._password = password
+        self._encryptor = None
         self.data = self._load()
+
+        # Setup encryption if password provided
+        if password:
+            salt = self.data.get("_salt")
+            self._encryptor = PathEncryptor(password, salt)
+            if not salt:
+                # New database - store salt
+                self.data["_salt"] = self._encryptor.get_salt_b64()
 
     def _load(self):
         """Load database from JSON file, or create empty if not exists."""
@@ -160,6 +234,22 @@ class Database:
                 "last_save_on": None
             }
         }
+
+    def _encrypt_path(self, path):
+        """Encrypt a path if encryption is enabled."""
+        if self._encryptor:
+            return self._encryptor.encrypt(path)
+        return path
+
+    def _decrypt_path(self, path):
+        """Decrypt a path if encryption is enabled."""
+        if self._encryptor:
+            try:
+                return self._encryptor.decrypt(path)
+            except Exception:
+                # Return as-is if decryption fails (might be unencrypted)
+                return path
+        return path
 
     def cleanup(self):
         """Remove any temporary files left over from interrupted saves."""
@@ -282,9 +372,14 @@ class Database:
     def get_file_by_path(self, path):
         """Find a monitored file by its filesystem path."""
         for f in self.data["files"]:
-            if f["path"] == path:
+            stored_path = self._decrypt_path(f["path"])
+            if stored_path == path:
                 return f
         return None
+
+    def get_file_path(self, file_obj):
+        """Get decrypted file path from a file object."""
+        return self._decrypt_path(file_obj["path"])
 
     def get_files_by_path_id(self, path_id):
         """Get all files belonging to a monitored path."""
@@ -319,7 +414,7 @@ class Database:
 
         new_file = {
             "id": self._next_id("files"),
-            "path": file_path,
+            "path": self._encrypt_path(file_path),
             "path_id": path_id,
             "size": file_size,
             "file_created_on": file_ctime,
@@ -385,7 +480,8 @@ class Database:
         for f in self.data["files"]:
             if f["id"] == file_id:
                 try:
-                    stat_info = os.stat(f["path"])
+                    file_path = self._decrypt_path(f["path"])
+                    stat_info = os.stat(file_path)
                     f["size"] = stat_info.st_size
                     f["file_modified_on"] = datetime.fromtimestamp(stat_info.st_mtime).isoformat()
                 except OSError:
@@ -619,7 +715,8 @@ def check_hash(db, monitored_file, file_hash):
     If no stored hash exists, stores the current hash as baseline.
     If hash mismatch detected, creates an anomaly.
     """
-    log.debug(f"Calculated hash {file_hash} for file {monitored_file['path']}")
+    file_path = db.get_file_path(monitored_file)
+    log.debug(f"Calculated hash {file_hash} for file {file_path}")
     existing = db.get_hash_by_file_id(monitored_file["id"])
 
     if not existing:
@@ -631,10 +728,10 @@ def check_hash(db, monitored_file, file_hash):
             log.debug("Hash OK")
         else:
             # Hash mismatch - file was modified!
-            log.error(f"Bad hash for file: {monitored_file['path']}")
+            log.error(f"Bad hash for file: {file_path}")
             anomaly = db.add_anomaly(monitored_file["id"], "Hash mismatch", file_hash)
             if anomaly:
-                log.error(f"NEW ANOMALY [ID: {anomaly['id']}] Hash mismatch for file {monitored_file['path']} !!!")
+                log.error(f"NEW ANOMALY [ID: {anomaly['id']}] Hash mismatch for file {file_path} !!!")
 
 
 def exist_check(db, monitored_file, ignore_not_found=False):
@@ -646,14 +743,15 @@ def exist_check(db, monitored_file, ignore_not_found=False):
     Returns:
         True if file exists, False otherwise.
     """
-    if os.path.exists(monitored_file["path"]):
+    file_path = db.get_file_path(monitored_file)
+    if os.path.exists(file_path):
         return True
     else:
         if not ignore_not_found:
-            log.error(f"File {monitored_file['path']} removed.")
+            log.error(f"File {file_path} removed.")
             anomaly = db.add_anomaly(monitored_file["id"], "File removed")
             if anomaly:
-                log.error(f"NEW ANOMALY [ID: {anomaly['id']}] File removed: {monitored_file['path']} !!!")
+                log.error(f"NEW ANOMALY [ID: {anomaly['id']}] File removed: {file_path} !!!")
         return False
 
 
@@ -714,7 +812,7 @@ def cmd_list_anomalies(db, unresolved_only=True):
     for a in anomalies:
         status_str = "RESOLVED" if a["accepted_on"] else "UNRESOLVED"
         file_obj = next((f for f in db.get_files() if f["id"] == a["file_id"]), None)
-        file_path = file_obj["path"] if file_obj else "Unknown"
+        file_path = db.get_file_path(file_obj) if file_obj else "Unknown"
         print(f"  [{a['id']}] [{status_str}] {a['description']}: {file_path}")
         if a["sha256"]:
             print(f"         New hash: {a['sha256']}")
@@ -744,7 +842,7 @@ def cmd_accept_anomaly(db, anomaly_id):
         db.update_file_metadata(anomaly["file_id"])
         file_obj = next((f for f in db.get_files() if f["id"] == anomaly["file_id"]), None)
         if file_obj:
-            log.info(f"Updated hash for {file_obj['path']}")
+            log.info(f"Updated hash for {db.get_file_path(file_obj)}")
 
     log.info(f"Accepted anomaly {anomaly_id}")
     db.save()
@@ -819,17 +917,18 @@ def cmd_run(db, ignore_not_found=False):
 
     # Phase 2: Verify integrity of all monitored files
     for monitored_file in db.get_files():
+        file_path = db.get_file_path(monitored_file)
         # Skip files on unmounted volumes
-        if not is_mount_active(monitored_file["path"]):
-            log.debug(f"Skipping {monitored_file['path']}: mount not active")
+        if not is_mount_active(file_path):
+            log.debug(f"Skipping {file_path}: mount not active")
             continue
 
         if exist_check(db, monitored_file, ignore_not_found):
-            file_hash = calculate_hash(monitored_file["path"])
+            file_hash = calculate_hash(file_path)
             if file_hash:
                 check_hash(db, monitored_file, file_hash)
             else:
-                log.warning(f"Could not calculate hash for {monitored_file['path']}")
+                log.warning(f"Could not calculate hash for {file_path}")
 
     # Save all changes at the end
     db.save()
@@ -867,6 +966,8 @@ def main():
                         help="Don't raise errors for missing files")
     parser.add_argument("--db", metavar="PATH", default=DEFAULT_DB_PATH,
                         help=f"Database path (default: {DEFAULT_DB_PATH})")
+    parser.add_argument("-p", "--password", metavar="PASSWORD",
+                        help="Password to encrypt file paths in database")
     parser.add_argument("-v", "--version", action="version",
                         version=f"%(prog)s {VERSION}")
     args = parser.parse_args()
@@ -881,8 +982,14 @@ def main():
     log.debug(f"Screwed File Monitor v{VERSION} starting...")
     log.debug(f"Using database: {args.db}")
 
+    # Check for encryption dependencies
+    if args.password and not CRYPTO_AVAILABLE:
+        log.error("Password encryption requires cryptography library. "
+                  "Install with: pip install cryptography")
+        sys.exit(1)
+
     # Initialize database connection
-    db = Database(args.db)
+    db = Database(args.db, password=args.password)
 
     # Setup signal handler for graceful shutdown on Ctrl+C
     def signal_handler(_signum, _frame):

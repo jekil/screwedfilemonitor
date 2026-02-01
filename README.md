@@ -16,6 +16,7 @@ Screwed File Monitor detects file alterations or corruption and warns you, so yo
 - JSON-based storage (no external dependencies)
 - YAML configuration file (optional)
 - Atomic writes to prevent database corruption
+- Optional path encryption with password (-p)
 
 ## Installation
 
@@ -26,6 +27,9 @@ cd screwedfilemonitor
 
 # Optional: install PyYAML for config file support
 pip install pyyaml
+
+# Optional: install cryptography for path encryption (-p option)
+pip install cryptography
 ```
 
 ## Usage
@@ -66,6 +70,9 @@ python sfm.py --db /path/to/custom.json
 
 # Ignore missing files (don't report as anomalies)
 python sfm.py -i
+
+# Encrypt file paths in database with a password
+python sfm.py -p "your-secret-password"
 ```
 
 ## Configuration
@@ -134,6 +141,10 @@ A backup (`db.bak`) is created before each save.
 - All database files have permissions 600 (owner read/write only)
 - Atomic writes prevent corruption on interruption
 - Graceful shutdown on SIGINT/SIGTERM
+- Optional path encryption with `-p` flag (requires `cryptography` library)
+  - Uses Fernet symmetric encryption (AES-128-CBC with HMAC)
+  - Key derived from password using PBKDF2 with 480,000 iterations
+  - Salt stored in database for key regeneration
 
 ## License
 
