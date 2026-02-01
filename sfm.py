@@ -10,15 +10,23 @@ Features:
     - Detect file modifications via hash comparison
     - Detect file deletions
     - Track and manage integrity anomalies
+    - Apple Photos/iPhoto library support
     - JSON-based storage (no external dependencies)
+    - Optional path encryption with password
 
 Usage:
-    sfm.py -a /path/to/monitor    Add a path to monitoring
-    sfm.py -r /path/to/remove     Remove a path from monitoring
-    sfm.py -l                     List monitored paths
-    sfm.py                        Run integrity check
-    sfm.py --anomalies            Show unresolved anomalies
-    sfm.py --accept ID            Accept an anomaly
+    sfm.py -a /path/to/monitor       Add a path to monitoring
+    sfm.py -a /path --iphoto         Add Photos/iPhoto library
+    sfm.py -r /path/to/remove        Remove a path from monitoring
+    sfm.py -l                        List monitored paths
+    sfm.py                           Run integrity check
+    sfm.py --anomalies               Show unresolved anomalies
+    sfm.py --accept ID               Accept an anomaly
+    sfm.py --accept-all              Accept all anomalies
+    sfm.py -p PASSWORD               Encrypt file paths with password
+    sfm.py --db /path/to/db.json     Use custom database path
+    sfm.py -d                        Enable debug output
+    sfm.py -v                        Show version
 
 Copyright (C) 2014-2026 Alessandro Tanasi (@jekil).
 """
