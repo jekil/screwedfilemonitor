@@ -1,0 +1,105 @@
+# Screwed File Monitor Configuration
+# -----------------------------------
+
+# Files to skip during scanning (system/temporary files)
+skipped_files:
+  # macOS
+  - ".DS_Store"
+  - ".AppleDouble"
+  - ".LSOverride"
+  - "._*"                    # Resource forks
+  - ".Spotlight-V100"
+  - ".Trashes"
+  - ".fseventsd"
+  - ".TemporaryItems"
+  - ".apdisk"
+  - "Icon\r"                 # Custom folder icon
+
+  # Windows
+  - "Thumbs.db"
+  - "Thumbs.db:encryptable"
+  - "ehthumbs.db"
+  - "ehthumbs_vista.db"
+  - "desktop.ini"
+  - "Desktop.ini"
+  - "*.lnk"                  # Shortcuts
+  - "*.tmp"
+  - "~$*"                    # Office temp files
+  - "*.bak"
+
+  # Linux
+  - ".directory"             # KDE directory settings
+  - ".Trash-*"
+  - "*~"                     # Backup files
+  - ".nfs*"                  # NFS temp files
+  - ".fuse_hidden*"
+
+  # Editors/IDEs
+  - "*.swp"                  # Vim swap
+  - "*.swo"
+  - ".*.swp"
+  - ".*.swo"
+  - "*~"                     # Emacs backup
+  - "#*#"                    # Emacs autosave
+  - ".#*"                    # Emacs lock files
+
+  # Logs and caches
+  - "*.log"
+  - "*.pid"
+  - "*.seed"
+
+# Directories to skip during scanning (version control, caches)
+skipped_dirs:
+  # macOS
+  - ".AppleDouble"
+  - ".Spotlight-V100"
+  - ".Trashes"
+  - ".fseventsd"
+  - ".TemporaryItems"
+
+  # Version control
+  - ".git"
+  - ".svn"
+  - ".hg"
+  - ".bzr"
+  - "CVS"
+  - "_darcs"
+
+  # Python
+  - "__pycache__"
+  - ".pytest_cache"
+  - ".mypy_cache"
+  - ".tox"
+  - ".nox"
+  - ".eggs"
+  - "*.egg-info"
+  - ".venv"
+  - "venv"
+  - "env"
+
+  # Node.js
+  - "node_modules"
+  - ".npm"
+  - ".yarn"
+
+  # IDEs
+  - ".idea"
+  - ".vscode"
+  - ".vs"
+  - "*.xcodeproj"
+  - "*.xcworkspace"
+
+  # Build directories
+  - "build"
+  - "dist"
+  - "target"
+  - "out"
+  - ".gradle"
+  - ".cache"
+
+  # Windows
+  - "$RECYCLE.BIN"
+  - "System Volume Information"
+
+# Default database file path
+db_path: "db.json"
