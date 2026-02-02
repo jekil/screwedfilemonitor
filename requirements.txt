@@ -1,0 +1,10 @@
+# Screwed File Monitor - Optional Dependencies
+#
+# Core functionality works without any dependencies.
+# Install these for additional features:
+
+# YAML configuration file support
+pyyaml>=6.0
+
+# Path encryption (-p option)
+cryptography>=41.0

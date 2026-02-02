@@ -25,11 +25,12 @@ Screwed File Monitor detects file alterations or corruption and warns you, so yo
 git clone https://github.com/jekil/screwedfilemonitor.git
 cd screwedfilemonitor
 
-# Optional: install PyYAML for config file support
-pip install pyyaml
+# Optional: install all optional dependencies
+pip install -r requirements.txt
 
-# Optional: install cryptography for path encryption (-p option)
-pip install cryptography
+# Or install individually:
+pip install pyyaml        # for config file support
+pip install cryptography  # for path encryption (-p option)
 ```
 
 ## Usage
