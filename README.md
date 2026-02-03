@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.png" alt="Screwed File Monitor" width="200">
+</p>
+
 # Screwed File Monitor
 
 A lightweight file integrity monitoring tool that detects unauthorized changes to files by calculating and comparing SHA-256 hashes.
