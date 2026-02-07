@@ -1001,10 +1001,14 @@ def main():
 
     # Setup signal handler for graceful shutdown on Ctrl+C
     def signal_handler(_signum, _frame):
-        """Handle interrupt signal by cleaning up and exiting cleanly."""
-        log.warning("\nInterrupted! Cleaning up...")
+        """Handle interrupt signal by saving database and exiting cleanly."""
+        # Ignore further signals to prevent re-entrancy during save
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        log.warning("\nInterrupted! Saving database...")
         db.cleanup()  # Remove any temp files from interrupted save
-        log.info("Cleanup complete. Exiting.")
+        db.save()     # Save current state to a valid JSON file
+        log.info("Database saved. Exiting.")
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
